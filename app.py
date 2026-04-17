@@ -7,6 +7,15 @@ st.set_page_config(page_title="Fundamental Data Tracker", layout="wide")
 
 st.title("📊 Perbandingan Data Historis Fundamental Saham")
 st.write("Membandingkan metrik keuangan perusahaan dengan pertumbuhan S&P 500 sebagai standar.")
+# --- FITUR BARU: Menyembunyikan Branding Streamlit ---
+hide_streamlit_style = """
+            <style>
+            #MainMenu {visibility: hidden;}
+            footer {visibility: hidden;}
+            header {visibility: hidden;}
+            </style>
+            """
+st.markdown(hide_streamlit_style, unsafe_allow_html=True)
 
 # 1. Pilihan Input
 col1, col2 = st.columns(2)
