@@ -12,15 +12,27 @@ st.write("Membandingkan metrik keuangan perusahaan dengan pertumbuhan S&P 500 se
 col1, col2 = st.columns(2)
 with col1:
     selected_assets = st.multiselect(
-        "Pilih Saham (Bisa ketik ticker lain):", 
+        "Pilih Saham Tersedia:", 
         options=["AVGO", "PLTR", "VST", "NVDA", "AAPL", "MSFT", "AMD"], 
         default=["AVGO", "PLTR"]
     )
+    # --- FITUR BARU: Tambah Ticker Manual ---
+    custom_tickers = st.text_input("➕ Tambahkan Ticker Lain (pisahkan koma, cth: TSLA, INTC):", "")
+
 with col2:
     metric_choice = st.selectbox(
         "Pilih Metrik Fundamental:", 
         ["Net Income", "Total Revenue", "Operating Income"]
     )
+
+# Menggabungkan pilihan dari dropdown dengan ketikan manual
+final_assets = selected_assets.copy()
+if custom_tickers:
+    # Membersihkan spasi dan mengubah huruf menjadi kapital secara otomatis
+    custom_list = [t.strip().upper() for t in custom_tickers.split(",") if t.strip()]
+    final_assets.extend(custom_list)
+    # Menghapus duplikat jika Anda mengetik ticker yang sama dengan di dropdown
+    final_assets = list(set(final_assets))
 
 # 2. Fungsi untuk Mengambil Data Fundamental Tahunan dengan Error Handling
 @st.cache_data
@@ -32,7 +44,6 @@ def get_financial_data(tickers, metric):
             stock = yf.Ticker(ticker)
             financials = stock.financials
             
-            # Cek apakah data financials tersedia
             if financials is not None and not financials.empty:
                 if metric in financials.index:
                     data = financials.loc[metric]
@@ -46,12 +57,8 @@ def get_financial_data(tickers, metric):
         except Exception as e:
              st.warning(f"Terjadi kesalahan saat mengambil data untuk {ticker}: {e}")
             
-    # Urutkan dari tahun terlama ke terbaru jika data tidak kosong
     if not df_combined.empty:
-        # Hapus kolom yang isinya NaN semua
         df_combined = df_combined.dropna(axis=1, how='all')
-        # Isi sisa NaN (misal perusahaan baru IPO) dengan nilai sebelumnya atau nol (tergantung preferensi, di sini kita forward fill lalu fillna 0 untuk aman di perhitungan persentase, meski idealnya di-drop)
-        # Tapi lebih aman kita hanya plot data yang valid. Kita dropna untuk baris yang ada NaN.
         df_combined = df_combined.dropna() 
         return df_combined.sort_index()
     else:
@@ -69,9 +76,9 @@ def get_sp500_benchmark(years):
         return sp500_yearly[sp500_yearly.index.isin(years)]
     return pd.Series()
 
-if selected_assets:
+if final_assets:
     with st.spinner('Menarik data dari server...'):
-        fund_data = get_financial_data(selected_assets, metric_choice)
+        fund_data = get_financial_data(final_assets, metric_choice)
         
         if not fund_data.empty:
             years = fund_data.index.tolist()
@@ -82,9 +89,9 @@ if selected_assets:
             for col in fund_data.columns:
                 first_val = fund_data[col].iloc[0]
                 if first_val != 0 and pd.notna(first_val):
-                    norm_fund[col] = (fund_data[col] / abs(first_val) - 1) * 100 # Pakai absolute untuk menangani nilai negatif awal
+                    norm_fund[col] = (fund_data[col] / abs(first_val) - 1) * 100
                 else:
-                     norm_fund[col] = 0 # Atau penanganan lain
+                     norm_fund[col] = 0
                      
             if not sp500_data.empty:
                 first_sp_val = sp500_data.iloc[0]
